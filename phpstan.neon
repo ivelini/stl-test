@@ -1,0 +1,18 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 6
+    paths:
+        - app
+        - tests
+    bootstrapFiles:
+        - vendor/larastan/larastan/bootstrap.php
+    parallel:
+        maximumNumberOfProcesses: 1
+
+    # phpstan 2.2 не применяет @use (generic trait) к HasFactory — известный
+    # регресс версии; убрать ignore и вернуть @use HasFactory<Slot> при апгрейде
+    ignoreErrors:
+        - '#uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types#'
+

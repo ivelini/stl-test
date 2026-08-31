@@ -1,0 +1,75 @@
+networks:
+  app-network:
+    driver: bridge
+
+services:
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: ${DOCKER_APP_NAME:-project}-nginx
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+      - ./storage/logs/nginx:/var/log/nginx/
+    ports:
+      - "${DOCKER_NGINX_PORT:-5580}:80"
+    depends_on:
+      - app
+    environment:
+      TZ: ${DOCKER_WORKSPACE_TIMEZONE:-UTC}
+    networks:
+      - app-network
+
+  app:
+    image: app:php8.5-fpm
+    container_name: ${DOCKER_APP_NAME:-project}-app
+    hostname: app-service
+    build:
+      args:
+        user: stl-test
+        uid: 1000
+      context: ./docker/php
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PHP_IDE_CONFIG: "serverName=Docker"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./:/var/www:cached
+    networks:
+      - app-network
+
+  mysql:
+    image: mysql:8.4
+    container_name: ${DOCKER_APP_NAME:-project}-mysql
+    restart: unless-stopped
+    volumes:
+      - ${DOCKER_MYSQL_STORAGE:-./docker-volumes/database/mysql/data}:/var/lib/mysql:cached
+    ports:
+      - "${DOCKER_MYSQL_PORT:-53306}:3306"
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent" ]
+
+  redis:
+    image: 'redis:alpine'
+    container_name: ${DOCKER_APP_NAME:-project}-redis
+    restart: unless-stopped
+    ports:
+      - "${DOCKER_REDIS_PORT:-56379}:6379"
+    environment:
+      TZ: ${DOCKER_WORKSPACE_TIMEZONE:-UTC}
+    volumes:
+      - ${DOCKER_REDIS_STORAGE:-../docker/redis/data}:/var/lib/redis:cached
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
