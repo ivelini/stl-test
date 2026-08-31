@@ -5,12 +5,18 @@ namespace App\Http\Controllers\Holds;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\HoldResource;
 use App\Models\Hold;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use App\Services\SlotService\Holds\ConfirmHold;
 
 class HoldConfirmController extends Controller
 {
-    public function __invoke(Hold $hold): AnonymousResourceCollection
+    public function __construct(
+        private readonly ConfirmHold $confirmHold,
+    ) {}
+
+    public function __invoke(Hold $hold): HoldResource
     {
-        return HoldResource::collection(Hold::all());
+        $this->confirmHold->handle($hold);
+
+        return new HoldResource($hold->fresh());
     }
 }

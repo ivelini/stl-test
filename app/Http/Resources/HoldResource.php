@@ -20,7 +20,7 @@ class HoldResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
 
-            'slot' => new SlotResource($this->whenLoaded('slot')),
+            'slot' => $this->whenLoaded('slot', fn () => new SlotResource($this->slot)),
         ];
     }
 }

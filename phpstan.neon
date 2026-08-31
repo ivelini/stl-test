@@ -7,6 +7,7 @@ parameters:
         - app
         - tests
     bootstrapFiles:
+        - phpstan-bootstrap.php
         - vendor/larastan/larastan/bootstrap.php
     parallel:
         maximumNumberOfProcesses: 1

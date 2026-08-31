@@ -22,6 +22,11 @@ return [
         'key' => env('RESEND_API_KEY'),
     ],
 
+    'stress' => [
+        // Базовый URL для holds:stress: изнутри контейнера — имя сервиса nginx
+        'api_base' => env('STRESS_API_BASE', 'http://nginx:80/api'),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

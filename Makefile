@@ -1,33 +1,38 @@
-.PHONY: setup composer-install artisan-key-generate artisan-storage-link up ps down fix lint
+.PHONY: setup composer-install artisan-key-generate artisan-storage-link up ps down fix lint test bash
+
+DOCKER      := docker compose
 
 setup: up composer-install artisan-key-generate artisan-storage-link
 
 composer-install:
-	docker compose exec app composer install
+	$(DOCKER) exec app composer install
 
 artisan-key-generate:
-	docker compose exec app php artisan key:generate
+	$(DOCKER) exec app php artisan key:generate
 
 up:
-	docker compose up -d
+	$(DOCKER) up -d
 
 ps:
-	docker compose ps
+	$(DOCKER) ps
 
 down:
-	docker compose down
+	$(DOCKER) down
 
 fresh:
-	docker compose exec app bash -c "php artisan migrate:fresh --seed "
+	$(DOCKER) exec app bash -c "php artisan migrate:fresh --seed "
 
 release:
-	docker compose exec app bash -c "php artisan optimize:clear"
+	$(DOCKER) exec app bash -c "php artisan optimize:clear"
 
 fix:
-	docker compose exec app bash -c "./vendor/bin/pint app config database routes tests"
+	$(DOCKER) exec app bash -c "./vendor/bin/pint app config database routes tests"
 
 lint:
-	docker compose exec app bash -c "./vendor/bin/phpstan analyse --no-progress"
+	$(DOCKER) exec app bash -c "./vendor/bin/phpstan analyse --no-progress"
+
+test:
+	$(DOCKER) exec app php artisan test
 
 bash:
-	docker compose exec app bash
+	$(DOCKER) exec app bash

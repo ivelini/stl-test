@@ -12,8 +12,8 @@
 | ADR (7 решений) | Готово |
 | `GET /slots/availability` | Каркас: `SlotController@index` есть, кэш и остаток не реализованы |
 | `POST /slots/{id}/hold`, `POST /holds/{id}/confirm`, `DELETE /holds/{id}` | Стабы: контроллеры есть, логики нет, маршруты не зарегистрированы |
-| `app/Services` (AvailabilityReader, HoldCreator, CapacityArbiter, HoldLifecycle) | **Не создан** — целевой слой по ADR 0005, реализовать |
-| Инвалидация кэша (`InvalidateCacheSlotListener`) | Пустой стаб; событие `SlotChangedEvent` есть |
+| `app/Services/` | Реализован: домены `Slots/` и `Holds/`, один контракт `handle()` на сервис, кэш в отдельном сервисе |
+| Инвалидация кэша | Реализована: `SlotChangedEvent` → слушатель → `CacheInvalidator` (ADR 0006) |
 | БД | `slots`, `holds` + `expires_at` (миграция добавлена); `HoldStatusEnum`: held, confirmed, cancelled |
 | Тесты | Не написаны (стоковые ExampleTest удалены) — пишутся по тест-листу плана |
 
@@ -50,7 +50,15 @@ app/
 └── Providers/ AppServiceProvider
 ```
 
-Целевая структура (по ADR 0005): добавить `app/Services/` — `AvailabilityReader`, `HoldCreator`, `CapacityArbiter`, `HoldLifecycle`. Класса `SlotService` нет и не будет — «SlotService» из ТЗ трактуется как сервисный слой (ADR 0005).
+`app/Cache/` — инфраструктурный слой кэша (единственное место с `Cache::`-фасадом): `FlexibleCache` (чтение с окном flexible+lock), `CacheInvalidator` (сброс ключа).
+
+`app/Services/SlotService/` — сервисный слой «SlotService» из ТЗ (ADR 0005). Домены:
+- `Slots/` — Витрина + Арбитраж: `AvailabilityReader` (чистый запрос остатков в SQL), `CheckCapacity`, `ReserveCapacity` (атомарный переход).
+- `Holds/` — Выдача + Жизненный цикл: `CreateHold` (идемпотентно, фабричный контракт), `ConfirmHold`, `CancelHold`.
+
+Правила: один сервис = один публичный контракт `handle()`; кэш — только через `App\Cache` (никаких `Cache::` в доменных сервисах); домен объявляет ключ/окно, инфраструктура применяет механизм.
+
+`config/availability.php` — все значения: ключ/окно кэша, `per_page`, срок годности билета, таймауты блокировки (без env — меняются осознанно в коде).
 
 ## Домен и доменные правила
 
@@ -77,7 +85,7 @@ app/
 
 | Метод | Маршрут | Контроллер | Состояние |
 |---|---|---|---|
-| GET | `/slots/availability` | `SlotController@index` | каркас: отдаёт все слоты, `remaining` и кэш отсутствуют |
+| GET | `/slots/availability?page=` | `SlotController@index` | реализован: envelope `{data, meta}`, per_page=100, remaining в SQL, кэш 5–15 с |
 | POST | `/slots/{id}/hold` (заголовок `Idempotency-Key`) | `SlotHoldController` | стаб, маршрут не зарегистрирован |
 | POST | `/holds/{id}/confirm` | `HoldConfirmController` | стаб, маршрут не зарегистрирован |
 | DELETE | `/holds/{id}` | `HoldController@destroy` | стаб: удаляет запись вместо перевода в `cancelled` |
@@ -91,7 +99,7 @@ app/
 | ТЗ | `documentations/tz/test-task.md` (+ раздел противоречий — как решены) |
 | Решения (ADR) | `documentations/adr/` — см. таблицу ниже |
 | Архитектура | `documentations/architecture/` — 01 характеристики, 02 компоненты, 03 стиль, 05 схема |
-| Эксплуатация | `documentations/operations.md` — **отсутствует**, создать при первом деплой/ручном сценарии |
+| Эксплуатация | `documentations/operations.md` — env, запуск, ручные сценарии (`holds:stress`) |
 | Контракты API | `documentations/api-maps/` — отсутствует; контракт пока задан ТЗ |
 | Интеграции | `documentations/integrations/` — нет внешних сервисов (MySQL/Redis — внутри docker-стека) |
 
@@ -106,6 +114,8 @@ app/
 | 0005 | «SlotService» — сервисный слой, не класс | Accepted |
 | 0006 | Инвалидация кэша событием | Accepted |
 | 0007 | Окно кэша: две фазы + защита от лавины | Accepted |
+| 0008 | Контракт сервисного слоя: один сервис — один `handle()` | Accepted |
+| 0009 | Кэш — инфраструктурный слой вне домена | Accepted |
 
 Полные тексты — `documentations/adr/`, правила ведения — глобальное правило `adr.md`.
 
