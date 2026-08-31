@@ -2,21 +2,22 @@
 
 namespace App\Listeners;
 
-use App\Cache\CacheInvalidator;
+use App\Cache\BumpCacheVersion;
 use App\Events\SlotChangedEvent;
 
 /**
- * Слушатель — часть Витрины доступности (ADR 0006): знание о кэше
- * остаётся в домене (ключ — в config/availability.php), механизм — в App\Cache.
+ * Слушатель — часть Витрины доступности (ADR 0006): инвалидация кэша
+ * версией (инкремент) — старые ключи страниц недостижимы. Знание о кэше
+ * остаётся в домене (неймспейс — config/availability.php), механизм — App\Cache.
  */
 class InvalidateCacheSlotListener
 {
     public function __construct(
-        private readonly CacheInvalidator $cacheInvalidator,
+        private readonly BumpCacheVersion $bumpVersion,
     ) {}
 
     public function handle(SlotChangedEvent $event): void
     {
-        $this->cacheInvalidator->handle(config('availability.cache_key'));
+        $this->bumpVersion->handle((string) config('availability.cache_key'));
     }
 }

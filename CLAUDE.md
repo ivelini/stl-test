@@ -50,7 +50,7 @@ app/
 └── Providers/ AppServiceProvider
 ```
 
-`app/Cache/` — инфраструктурный слой кэша (единственное место с `Cache::`-фасадом): `FlexibleCache` (чтение с окном flexible+lock), `CacheInvalidator` (сброс ключа).
+`app/Cache/` — инфраструктурный слой кэша (единственное место с `Cache::`-фасадом): `FlexibleCache` (чтение с окном flexible+lock), `ReadCacheVersion` / `BumpCacheVersion` (версионированная инвалидация страниц, ADR 0011).
 
 `app/Services/SlotService/` — сервисный слой «SlotService» из ТЗ (ADR 0005). Домены:
 - `Slots/` — Витрина + Арбитраж: `AvailabilityReader` (чистый запрос остатков в SQL), `CheckCapacity`, `ReserveCapacity` (атомарный переход).
@@ -116,6 +116,8 @@ app/
 | 0007 | Окно кэша: две фазы + защита от лавины | Accepted |
 | 0008 | Контракт сервисного слоя: один сервис — один `handle()` | Accepted |
 | 0009 | Кэш — инфраструктурный слой вне домена | Accepted |
+| 0010 | Витрина: рабочий процесс в сервисе, контроллер тонкий | Accepted |
+| 0011 | Кэш доступности постраничный: инвалидация версией | Accepted |
 
 Полные тексты — `documentations/adr/`, правила ведения — глобальное правило `adr.md`.
 

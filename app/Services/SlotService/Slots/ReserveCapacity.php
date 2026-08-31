@@ -2,6 +2,7 @@
 
 namespace App\Services\SlotService\Slots;
 
+use App\Enums\HoldStatusEnum;
 use App\Exceptions\CapacityExhaustedException;
 use App\Exceptions\HoldStateConflictException;
 use App\Models\Hold;
@@ -21,7 +22,7 @@ class ReserveCapacity
             $lockedSlot = Slot::whereKey($slot->id)->lockForUpdate()->firstOrFail();
 
             $confirmed = Hold::where('slot_id', $lockedSlot->id)
-                ->where('status', 'confirmed')
+                ->where('status', HoldStatusEnum::Confirmed->value)
                 ->count();
 
             if ($confirmed >= $lockedSlot->capacity) {
@@ -29,8 +30,8 @@ class ReserveCapacity
             }
 
             $affected = Hold::whereKey($hold->id)
-                ->where('status', 'held')
-                ->update(['status' => 'confirmed']);
+                ->where('status', HoldStatusEnum::Held->value)
+                ->update(['status' => HoldStatusEnum::Confirmed->value]);
 
             if ($affected === 0) {
                 throw new HoldStateConflictException;

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\HoldStatusEnum;
 use App\Events\SlotChangedEvent;
 use App\Models\Slot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,7 +46,7 @@ class HoldApiTest extends TestCase
         $key = (string) Str::uuid();
 
         $created = $this->withHeader('Idempotency-Key', $key)->postJson("/api/slots/{$slot->id}/hold");
-        $created->assertStatus(201)->assertJsonPath('status', 'held');
+        $created->assertStatus(201)->assertJsonPath('status', HoldStatusEnum::Held->value);
 
         $replay = $this->withHeader('Idempotency-Key', $key)->postJson("/api/slots/{$slot->id}/hold");
         $replay->assertStatus(200)->assertJsonPath('id', $created->json('id'));
@@ -105,15 +106,15 @@ class HoldApiTest extends TestCase
     public function test_confirm_and_cancel_invalidate_cache(): void
     {
         $slot = Slot::query()->create(['capacity' => 10]);
+        $versionKey = config('availability.cache_key').':version';
 
-        Cache::put(config('availability.cache_key'), 'stale', 60);
         $holdId = $this->createHoldViaApi($slot);
+        $this->assertSame(0, Cache::get($versionKey, 0));
         $this->postJson("/api/holds/{$holdId}/confirm")->assertStatus(200);
-        $this->assertFalse(Cache::has(config('availability.cache_key')));
+        $this->assertSame(1, Cache::get($versionKey, 0));
 
-        Cache::put(config('availability.cache_key'), 'stale', 60);
         $holdId = $this->createHoldViaApi($slot);
         $this->deleteJson("/api/holds/{$holdId}")->assertStatus(204);
-        $this->assertFalse(Cache::has(config('availability.cache_key')));
+        $this->assertSame(2, Cache::get($versionKey, 0));
     }
 }

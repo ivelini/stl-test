@@ -37,7 +37,21 @@ class AvailabilityReaderTest extends TestCase
     /** @return array<string, mixed> */
     private function remainingFor(Slot $slot): array
     {
-        return collect($this->reader->handle())->firstWhere('slot_id', $slot->id);
+        return collect($this->reader->handlePage(1)['data'])->firstWhere('slot_id', $slot->id);
+    }
+
+    private function createSlots(int $count): void
+    {
+        DB::table('slots')->insert(
+            array_map(
+                fn () => [
+                    'capacity' => 10,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                range(1, $count)
+            )
+        );
     }
 
     public function test_remaining_computed_in_database(): void
@@ -57,5 +71,31 @@ class AvailabilityReaderTest extends TestCase
         }
 
         $this->assertSame(1, $this->remainingFor($slot)['remaining']);
+    }
+
+    /**
+     * Страж-тест долга: COUNT(*) — BIGINT UNSIGNED, вычитание из capacity
+     * могло упасть с ERROR 1690 (переполнение unsigned). Реализация с
+     * CAST(COUNT(*) AS SIGNED) обязана вернуть честный отрицательный остаток,
+     * а не уронить путь чтения.
+     */
+    public function test_negative_remaining_when_confirmed_exceeds_capacity(): void
+    {
+        $slot = Slot::query()->create(['capacity' => 1]);
+        $this->insertHold($slot, 'confirmed');
+        $this->insertHold($slot, 'confirmed');
+
+        $this->assertSame(-1, $this->remainingFor($slot)['remaining']);
+    }
+
+    public function test_page_returns_only_page_rows_and_total(): void
+    {
+        $this->createSlots(250);
+
+        $page2 = $this->reader->handlePage(2);
+
+        $this->assertCount(100, $page2['data']);
+        $this->assertSame(101, $page2['data'][0]['slot_id']);
+        $this->assertSame(250, $page2['total']);
     }
 }

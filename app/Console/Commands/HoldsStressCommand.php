@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\HoldStatusEnum;
 use App\Models\Hold;
 use App\Models\Slot;
 use Illuminate\Console\Command;
@@ -29,7 +30,7 @@ class HoldsStressCommand extends Command
         $base = config('services.stress.api_base');
         $tmp = tempnam(sys_get_temp_dir(), 'holds');
 
-        if ($slot->holds()->where('status', 'confirmed')->exists()) {
+        if ($slot->holds()->where('status', HoldStatusEnum::Confirmed->value)->exists()) {
             $this->warn('На слоте уже есть подтверждённые удержания — результат будет искажён, используйте свежий слот.');
         }
 
@@ -99,7 +100,7 @@ class HoldsStressCommand extends Command
     private function verify(Slot $slot, array $codes): int
     {
         $confirmed = Hold::where('slot_id', $slot->id)
-            ->where('status', 'confirmed')
+            ->where('status', HoldStatusEnum::Confirmed->value)
             ->count();
 
         $expected = min($slot->capacity, count($codes));

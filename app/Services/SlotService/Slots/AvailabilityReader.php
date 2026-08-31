@@ -6,23 +6,31 @@ use Illuminate\Support\Facades\DB;
 use stdClass;
 
 /**
- * Витрина доступности: представление остатков. Остаток вычисляется в базе
- * одним запросом без гидратации моделей. Настройки кэша — в config/availability.php.
+ * Витрина доступности: остатки по странице. Остаток вычисляется в базе
+ * одним запросом без гидратации моделей; страница — SQL LIMIT/OFFSET.
  */
 class AvailabilityReader
 {
     /**
-     * Полная карта остатков: capacity − количество подтверждённых (ADR 0002),
-     * вычитание — в SQL. Пагинация — срез после кэша (план, вариант A).
+     * Страница остатков: data — срез слотов с остатком, total — общее число слотов.
      *
-     * @return array<int, array{slot_id: int, capacity: int, remaining: int}>
+     * @return array{
+     *     data: array<int, array{slot_id: int, capacity: int, remaining: int}>,
+     *     total: int
+     * }
      */
-    public function handle(): array
+    public function handlePage(int $page): array
     {
-        return DB::table('slots')
+        $perPage = (int) config('availability.per_page');
+        $offset = ($page - 1) * $perPage;
+
+        $data = DB::table('slots')
             ->leftJoinSub(
                 DB::table('holds')
-                    ->selectRaw('slot_id, COUNT(*) as confirmed_count')
+                    // COUNT(*) — BIGINT UNSIGNED: вычитание из capacity ушло бы в unsigned
+                    // и при нарушении инварианта (confirmed > capacity) упало бы с 1690.
+                    // Явный CAST делает signed-семантику детерминированной.
+                    ->selectRaw('slot_id, CAST(COUNT(*) AS SIGNED) as confirmed_count')
                     ->where('status', 'confirmed')
                     ->groupBy('slot_id'),
                 'confirmed',
@@ -35,6 +43,8 @@ class AvailabilityReader
                 .'slots.capacity - COALESCE(confirmed.confirmed_count, 0) as remaining'
             )
             ->orderBy('slots.id')
+            ->offset($offset)
+            ->limit($perPage)
             ->get()
             ->map(fn (stdClass $row) => [
                 'slot_id' => (int) $row->slot_id,
@@ -42,5 +52,10 @@ class AvailabilityReader
                 'remaining' => (int) $row->remaining,
             ])
             ->all();
+
+        return [
+            'data' => $data,
+            'total' => (int) DB::table('slots')->count(),
+        ];
     }
 }

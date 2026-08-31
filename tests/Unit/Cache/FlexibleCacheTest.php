@@ -2,8 +2,8 @@
 
 namespace Tests\Unit\Cache;
 
-use App\Cache\CacheInvalidator;
 use App\Cache\FlexibleCache;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class FlexibleCacheTest extends TestCase
@@ -39,7 +39,7 @@ class FlexibleCacheTest extends TestCase
         };
 
         $cache->handle('flexible-test-key-2', [5, 15], $loader);
-        (new CacheInvalidator)->handle('flexible-test-key-2');
+        Cache::forget('flexible-test-key-2');
         $cache->handle('flexible-test-key-2', [5, 15], $loader);
 
         $this->assertSame(2, $calls);
