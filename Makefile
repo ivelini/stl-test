@@ -1,8 +1,8 @@
-.PHONY: setup composer-install artisan-key-generate artisan-storage-link up ps down fix lint test bash
+.PHONY: setup composer-install artisan-key-generate up ps down fix lint test bash
 
 DOCKER      := docker compose
 
-setup: up composer-install artisan-key-generate artisan-storage-link
+setup: up composer-install artisan-key-generate
 
 composer-install:
 	$(DOCKER) exec app composer install
