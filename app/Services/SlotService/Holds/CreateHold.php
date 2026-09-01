@@ -32,7 +32,7 @@ class CreateHold
                 'slot_id' => $slot->id,
                 'status' => 'held',
                 'idempotency_key' => $idempotencyKey,
-                'expires_at' => now()->addMinutes((int) config('availability.expires_minutes')),
+                'expires_at' => now()->addSeconds((int) config('availability.expires_seconds')),
             ]);
         } catch (QueryException $exception) {
             // Гонка: два создания с одним ключом — unique-индекс пропустил только первый.
